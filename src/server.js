@@ -28,6 +28,17 @@ const categorySchema = Joi.object({
     name: Joi.string().min(1),
 })
 
+const gameImageRegex = /^http:///;
+const gameSchema = Joi.object({
+    id: Joi.number().integer(),
+    name: Joi.string().min(1),
+    image: Joi.string().pattern(gameImageRegex),
+    stockTotal: Joi.number().integer(),
+    categoryId: Joi.number().integer(),
+    pricePerDay: Joi.number().integer(),
+    category: Joi.string().min(1),
+})
+
 app.get("/categories", (req, res) => {
     const query = connection.query('SELECT * FROM categories');
     query.then(result => {
@@ -38,13 +49,14 @@ app.get("/categories", (req, res) => {
 
 app.post("/categories", async (req, res) => {
     try{
-        if (typeof req.body.name == undefined){
+        if (req.body.name == ''){
             return res.sendStatus(400);
         }
         let lastCategoryIdQuery = await connection.query('SELECT id FROM categories ORDER BY id DESC LIMIT 1')
         let lastCategoryId = 1; 
-        console.log(lastCategoryIdQuery.rows[0].id);
-        lastCategoryId = lastCategoryIdQuery.rows[0].id;
+        if (lastCategoryIdQuery.rowCount > 1){
+            lastCategoryId = lastCategoryIdQuery.rows[0].id;
+        }
 
         let category = {id: lastCategoryId+1, name: req.body.name}
         const existCheckQuery = await connection.query('SELECT * FROM categories WHERE name= $1', [category.name]); 
@@ -57,7 +69,10 @@ app.post("/categories", async (req, res) => {
         console.log(error);
         res.sendStatus(404);
     }
+})
 
+app.get("/games", async (res, req) => {
+    console.log(2)
 })
 
 app.listen(process.env.PORT || 4000)

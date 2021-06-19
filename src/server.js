@@ -36,4 +36,28 @@ app.get("/categories", (req, res) => {
     })
 })
 
+app.post("/categories", async (req, res) => {
+    try{
+        if (typeof req.body.name == undefined){
+            return res.sendStatus(400);
+        }
+        let lastCategoryIdQuery = await connection.query('SELECT id FROM categories ORDER BY id DESC LIMIT 1')
+        let lastCategoryId = 1; 
+        console.log(lastCategoryIdQuery.rows[0].id);
+        lastCategoryId = lastCategoryIdQuery.rows[0].id;
+
+        let category = {id: lastCategoryId+1, name: req.body.name}
+        const existCheckQuery = await connection.query('SELECT * FROM categories WHERE name= $1', [category.name]); 
+        if(existCheckQuery.rows.length !== 0) {
+            return res.sendStatus(409);
+        }
+        const query = await connection.query('INSERT INTO categories (id, name) VALUES ($1, $2)', [category.id, category.name]);    
+        res.sendStatus(201);
+    } catch(error){
+        console.log(error);
+        res.sendStatus(404);
+    }
+
+})
+
 app.listen(process.env.PORT || 4000)

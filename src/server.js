@@ -190,9 +190,9 @@ app.post("/customers", async (req, res) => {
             lastCustomerId = lastCustomerIdQuery.rows[0].id;
         }
         
-        const existCPFCheckQuery = await connection.query('SELECT * FROM customers WHERE cpf= $1', [req.body.categoryId]); 
+        const existCPFCheckQuery = await connection.query('SELECT * FROM customers WHERE cpf= $1', [req.body.cpf]); 
         if(existCPFCheckQuery.rows.length > 0) {
-            return res.sendStatus(400);
+            return res.sendStatus(409);
         }
         else{
             let customer = {id: lastCustomerId+1,
@@ -216,5 +216,38 @@ app.post("/customers", async (req, res) => {
     }
 })
 
-
+app.put("/customers/:customerId", async (req, res) => {
+    const id = parseInt(req.params.customerId);
+    try{
+        const existCPFCheckQuery = await connection.query('SELECT * FROM customers WHERE cpf=$1 AND id !=$2', [req.body.cpf, id]); 
+        if(existCPFCheckQuery.rows.length > 0) {
+            return res.sendStatus(409);
+        }
+        else{
+            let customer = {id: id,
+                        name: req.body.name,
+                        phone: req.body.phone,
+                        cpf: req.body.cpf,
+                        birthday: req.body.birthday
+                        }
+            const { error, value } = customerSchema.validate(customer);
+            if (typeof error !== 'undefined'){
+                return res.sendStatus(400);
+            }
+            console.log(customer)
+            const query = await connection.query(`
+                UPDATE customers
+                SET name='${customer.name}',
+                    phone='${customer.phone}',
+                    cpf='${customer.cpf}',
+                    birthday='${customer.birthday}'
+                WHERE id = ${id}`);    
+            res.sendStatus(201);
+        }
+    }
+    catch(error){
+        console.log(error);
+        res.sendStatus(404);
+    }
+})
 app.listen(process.env.PORT || 4000)

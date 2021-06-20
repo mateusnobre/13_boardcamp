@@ -269,8 +269,20 @@ app.get("/rentals", async (req, res) => {
             const customerId = req.query.customerId;
             const gameId = req.query.gameId;
             const query = await connection.query(`
-            SELECT * 
-            FROM rentals
+            SELECT r.id,
+                r."customerId",
+                r."gameId",
+                r."rentDate",
+                r."daysRented",
+                r."returnDate",
+                r."originalPrice",
+                r."delayFee",
+                JSON_BUILD_OBJECT('id', c.id, 'name',c.name) AS customer,
+                JSON_BUILD_OBJECT('id', g.id, 'name',g.name, 'categoryId', g."categoryId", 'categoryName', cat.name) AS game
+            FROM rentals r
+                LEFT JOIN customers c on c.id = r."customerId"
+                LEFT JOIN games g on g.id = r."gameId"
+                LEFT JOIN categories cat on cat.id = g."categoryId"
             WHERE "gameId"=${gameId}
                 AND "customerId"=${customerId}`);
             res.status(200).send(query.rows);
@@ -278,23 +290,59 @@ app.get("/rentals", async (req, res) => {
         else if (typeof req.query.customerId !== 'undefined'){
             const customerId = req.query.customerId;
             const query = await connection.query(`
-            SELECT * 
-            FROM rentals
+            SELECT r.id,
+                r."customerId",
+                r."gameId",
+                r."rentDate",
+                r."daysRented",
+                r."returnDate",
+                r."originalPrice",
+                r."delayFee",
+                JSON_BUILD_OBJECT('id', c.id, 'name',c.name) AS customer,
+                JSON_BUILD_OBJECT('id', g.id, 'name',g.name, 'categoryId', g."categoryId", 'categoryName', cat.name) AS game
+            FROM rentals r
+                LEFT JOIN customers c on c.id = r."customerId"
+                LEFT JOIN games g on g.id = r."gameId"
+                LEFT JOIN categories cat on cat.id = g."categoryId"
             WHERE "customerId"=${customerId}`);
             res.status(200).send(query.rows);
         }
         else if (typeof req.query.gameId !== 'undefined'){
             const gameId = req.query.gameId;
             const query = await connection.query(`
-            SELECT * 
-            FROM rentals
-            WHERE "gameId"=${gameId}}`);
+            SELECT r.id,
+                r."customerId",
+                r."gameId",
+                r."rentDate",
+                r."daysRented",
+                r."returnDate",
+                r."originalPrice",
+                r."delayFee",
+                JSON_BUILD_OBJECT('id', c.id, 'name',c.name) AS customer,
+                JSON_BUILD_OBJECT('id', g.id, 'name',g.name, 'categoryId', g."categoryId", 'categoryName', cat.name) AS game
+            FROM rentals r
+                LEFT JOIN customers c on c.id = r."customerId"
+                LEFT JOIN games g on g.id = r."gameId"
+                LEFT JOIN categories cat on cat.id = g."categoryId"
+            WHERE r."gameId"=${gameId}}`);
             res.status(200).send(query.rows);
         }
         else {
             const query = await connection.query(`
-            SELECT * 
-            FROM rentals`);
+            SELECT r.id,
+                r."customerId",
+                r."gameId",
+                r."rentDate",
+                r."daysRented",
+                r."returnDate",
+                r."originalPrice",
+                r."delayFee",
+                JSON_BUILD_OBJECT('id', c.id, 'name',c.name) AS customer,
+                JSON_BUILD_OBJECT('id', g.id, 'name',g.name, 'categoryId', g."categoryId", 'categoryName', cat.name) AS game
+            FROM rentals r
+                LEFT JOIN customers c on c.id = r."customerId"
+                LEFT JOIN games g on g.id = r."gameId"
+                LEFT JOIN categories cat on cat.id = g."categoryId"`);
             res.status(200).send(query.rows);
         }
     }

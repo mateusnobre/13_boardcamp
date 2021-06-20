@@ -167,5 +167,19 @@ app.get("/customers", async (req, res) => {
     }
 })
 
+app.get('/customers/:customerId', (req, res) => {
+    const id = req.params.customerId;
+    try{
+        const query = await connection.query(`
+        SELECT * 
+        FROM customers
+        WHERE id =${id}`);
+        res.status(200).send(query.rows);
+    }
+    catch(error){
+        console.log(error);
+        res.sendStatus(404);
+    }
+});
 
 app.listen(process.env.PORT || 4000)

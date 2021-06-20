@@ -23,10 +23,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const categorySchema = Joi.object({
-    id: Joi.number().integer(),
-    name: Joi.string().min(1),
-})
 
 const gameImageRegex = /^http:///;
 
@@ -37,6 +33,14 @@ const gameSchema = Joi.object({
     stockTotal: Joi.number().integer().min(1).required(),
     categoryId: Joi.number().integer().required(),
     pricePerDay: Joi.number().integer().min(1).required()
+})
+
+const customersSchema = Joi.object({
+    id: Joi.number().integer().required(),
+    name: Joi.string().min(1).required(),
+    phone: Joi.string().min(10).max(11).required(),
+    cpf: Joi.string().min(11).max(11).required(),
+    birthday: Joi.string().min(1).required(),
 })
 
 app.get("/categories", (req, res) => {
@@ -137,6 +141,29 @@ app.post("/games", async (req, res) => {
     } catch(error){
         console.log(error);
         res.sendStatus(400);
+    }
+})
+
+app.get("/customers", async (req, res) => {
+    try {
+        if (typeof req.query.cpf !== 'undefined'){
+            const cpf = req.query.cpf;
+            const query = await connection.query(`
+            SELECT * 
+            FROM customers
+            WHERE cpf ILIKE '${cpf}%'`);
+            res.status(200).send(query.rows);
+        }
+        else {
+            const query = await connection.query(`
+            SELECT * 
+            FROM customers`);
+            res.status(200).send(query.rows);
+        }
+    }
+    catch(error){
+        console.log(error);
+        res.sendStatus(404);
     }
 })
 

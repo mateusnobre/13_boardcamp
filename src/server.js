@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import Joi from 'joi';
 import pg from 'pg';
+import { cursorTo } from 'readline';
 
 const { Pool } = pg;
 
@@ -35,11 +36,13 @@ const gameSchema = Joi.object({
     pricePerDay: Joi.number().integer().min(1).required()
 })
 
-const customersSchema = Joi.object({
+const stringOfNumbersRegex = /^[0-9]+$/
+
+const customerSchema = Joi.object({
     id: Joi.number().integer().required(),
     name: Joi.string().min(1).required(),
-    phone: Joi.string().min(10).max(11).required(),
-    cpf: Joi.string().min(11).max(11).required(),
+    phone: Joi.string().regex(stringOfNumbersRegex).min(10).max(11).required(),
+    cpf: Joi.string().regex(stringOfNumbersRegex).min(11).max(11).required(),
     birthday: Joi.string().min(1).required(),
 })
 
@@ -103,9 +106,6 @@ app.get("/games", async (req, res) => {
 
 app.post("/games", async (req, res) => {
     try{
-        if (req.body.name == ''){
-            return res.sendStatus(400);
-        }
         let lastGameIdQuery = await connection.query('SELECT id FROM games ORDER BY id DESC LIMIT 1')
         let lastGameId = 0; 
         if (lastGameIdQuery.rowCount >= 1){
@@ -167,7 +167,7 @@ app.get("/customers", async (req, res) => {
     }
 })
 
-app.get('/customers/:customerId', (req, res) => {
+app.get('/customers/:customerId', async (req, res) => {
     const id = req.params.customerId;
     try{
         const query = await connection.query(`
@@ -181,5 +181,40 @@ app.get('/customers/:customerId', (req, res) => {
         res.sendStatus(404);
     }
 });
+
+app.post("/customers", async (req, res) => {
+    try{
+        let lastCustomerIdQuery = await connection.query('SELECT id FROM customers ORDER BY id DESC LIMIT 1')
+        let lastCustomerId = 0; 
+        if (lastCustomerIdQuery.rowCount >= 1){
+            lastCustomerId = lastCustomerIdQuery.rows[0].id;
+        }
+        
+        const existCPFCheckQuery = await connection.query('SELECT * FROM customers WHERE cpf= $1', [req.body.categoryId]); 
+        if(existCPFCheckQuery.rows.length > 0) {
+            return res.sendStatus(400);
+        }
+        else{
+            let customer = {id: lastCustomerId+1,
+                        name: req.body.name,
+                        phone: req.body.phone,
+                        cpf: req.body.cpf,
+                        birthday: req.body.birthday
+                        }
+            const { error, value } = customerSchema.validate(customer);
+            if (typeof error !== 'undefined'){
+                return res.sendStatus(400);
+            }
+            console.log(customer)
+            const query = await connection.query('INSERT INTO customers (id, name, phone, cpf, birthday) VALUES ($1, $2, $3, $4, $5)',
+             [customer.id, customer.name, customer.phone, customer.cpf, customer.birthday]);    
+            res.sendStatus(201);
+        }
+    } catch(error){
+        console.log(error);
+        res.sendStatus(400);
+    }
+})
+
 
 app.listen(process.env.PORT || 4000)

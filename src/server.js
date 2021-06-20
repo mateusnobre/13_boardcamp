@@ -60,7 +60,6 @@ const rentalSchema = Joi.object({
 app.get("/categories", (req, res) => {
     const query = connection.query('SELECT * FROM categories');
     query.then(result => {
-        console.log(result.rows);
         res.status(200).send(result.rows);
     })
 })
@@ -81,7 +80,6 @@ app.post("/categories", async (req, res) => {
         if(existCheckQuery.rows.length !== 0) {
             return res.sendStatus(409);
         }
-        console.log(category);
         const query = await connection.query('INSERT INTO categories (id, name) VALUES ($1, $2)', [category.id, category.name]);    
         res.sendStatus(201);
     } catch(error){
@@ -144,7 +142,6 @@ app.post("/games", async (req, res) => {
             if (typeof error !== 'undefined'){
                 return res.sendStatus(400);
             }
-            console.log(game)
             const query = await connection.query('INSERT INTO games (id, name, image, "stockTotal", "categoryId", "pricePerDay") VALUES ($1, $2, $3, $4, $5, $6)',
              [game.id, game.name, game.image, game.stockTotal, game.categoryId, game.pricePerDay]);    
             res.sendStatus(201);
@@ -216,7 +213,6 @@ app.post("/customers", async (req, res) => {
             if (typeof error !== 'undefined'){
                 return res.sendStatus(400);
             }
-            console.log(customer)
             const query = await connection.query('INSERT INTO customers (id, name, phone, cpf, birthday) VALUES ($1, $2, $3, $4, $5)',
              [customer.id, customer.name, customer.phone, customer.cpf, customer.birthday]);    
             res.sendStatus(201);
@@ -245,7 +241,6 @@ app.put("/customers/:customerId", async (req, res) => {
             if (typeof error !== 'undefined'){
                 return res.sendStatus(400);
             }
-            console.log(customer)
             const query = await connection.query(`
                 UPDATE customers
                 SET name='${customer.name}',
@@ -396,7 +391,6 @@ app.post("/rentals", async (req, res) => {
             if (typeof error !== 'undefined'){
                 return res.sendStatus(400);
             }
-            console.log(rental)
             const query = await connection.query('INSERT INTO rentals (id, "customerId", "gameId", "rentDate", "daysRented", "returnDate", "originalPrice", "delayFee") VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
              [rental.id, rental.customerId, rental.gameId, rental.rentDate, rental.daysRented, null, rental.originalPrice, 0]);
             res.sendStatus(201);
@@ -425,7 +419,6 @@ app.post("/rentals/:rentalId/return", async (req, res) => {
                 LEFT JOIN games g on g.id = r."gameId"
                 WHERE r.id=${id}
             `)
-            console.log(delayFeeQuery.rows[0])
             let delayFee = delayFeeQuery.rows[0].delayFee;
             if (delayFee < 0){
                 delayFee = 0;

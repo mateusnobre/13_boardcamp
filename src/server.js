@@ -442,4 +442,25 @@ app.post("/rentals/:rentalId/return", async (req, res) => {
         res.sendStatus(400);
     }
 })
+
+app.delete("/rentals/:rentalId", async (req, res) => {
+    const id = parseInt(req.params.rentalId);
+    try {
+        const rentalQuery = await connection.query('SELECT * FROM rentals WHERE id=$1', [id]); 
+        if(rentalQuery.rows.length == 0) {
+            return res.sendStatus(404);
+        }
+        else if(rentalQuery.rows[0].returnDate !== null){
+            return res.sendStatus(400);
+        }
+        const query = await connection.query(`
+            DELETE FROM rentals 
+            WHERE id=${id}`)
+        res.sendStatus(200)
+    } catch(error){
+        console.log(error);
+        res.sendStatus(400);
+    }
+})
+
 app.listen(process.env.PORT || 4000)

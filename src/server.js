@@ -28,22 +28,33 @@ app.use(express.json());
 const gameImageRegex = /^http:///;
 
 const gameSchema = Joi.object({
-    id: Joi.number().integer().required(),
+    id: Joi.number().integer().min(1).required(),
     name: Joi.string().min(1).required(),
     image: Joi.string().pattern(gameImageRegex).required(),
     stockTotal: Joi.number().integer().min(1).required(),
-    categoryId: Joi.number().integer().required(),
+    categoryId: Joi.number().integer().min(1).required(),
     pricePerDay: Joi.number().integer().min(1).required()
 })
 
 const stringOfNumbersRegex = /^[0-9]+$/
 
 const customerSchema = Joi.object({
-    id: Joi.number().integer().required(),
+    id: Joi.number().integer().min(1).required(),
     name: Joi.string().min(1).required(),
     phone: Joi.string().regex(stringOfNumbersRegex).min(10).max(11).required(),
     cpf: Joi.string().regex(stringOfNumbersRegex).min(11).max(11).required(),
-    birthday: Joi.string().min(1).required(),
+    birthday: Joi.date().required(),
+})
+
+const rentalSchema = Joi.object({
+    id: Joi.number().integer().min(1).required(),
+    customerId: Joi.number().integer().min(1).required(),
+    gameId: Joi.number().integer().min(1).required(),
+    rentDate: Joi.date().required(),
+    daysRented: Joi.number().integer().min(0),
+    returnDate: Joi.date(),
+    originalPrice: Joi.number().integer().min(0).required(),    
+    delayFee: Joi.number().integer().min(0)
 })
 
 app.get("/categories", (req, res) => {
@@ -250,4 +261,102 @@ app.put("/customers/:customerId", async (req, res) => {
         res.sendStatus(404);
     }
 })
+
+
+app.get("/rentals", async (req, res) => {
+    try {
+        if (typeof req.query.customerId !== 'undefined' && typeof req.query.gameId !== 'undefined'){
+            const customerId = req.query.customerId;
+            const gameId = req.query.gameId;
+            const query = await connection.query(`
+            SELECT * 
+            FROM rentals
+            WHERE "gameId"=${gameId}
+                AND "customerId"=${customerId}`);
+            res.status(200).send(query.rows);
+        }
+        else if (typeof req.query.customerId !== 'undefined'){
+            const customerId = req.query.customerId;
+            const query = await connection.query(`
+            SELECT * 
+            FROM rentals
+            WHERE "customerId"=${customerId}`);
+            res.status(200).send(query.rows);
+        }
+        else if (typeof req.query.gameId !== 'undefined'){
+            const gameId = req.query.gameId;
+            const query = await connection.query(`
+            SELECT * 
+            FROM rentals
+            WHERE "gameId"=${gameId}}`);
+            res.status(200).send(query.rows);
+        }
+        else {
+            const query = await connection.query(`
+            SELECT * 
+            FROM rentals`);
+            res.status(200).send(query.rows);
+        }
+    }
+    catch(error){
+        console.log(error);
+        res.sendStatus(404);
+    }
+})
+
+app.post("/rentals", async (req, res) => {
+    try{
+        let lastRentalIdQuery = await connection.query('SELECT id FROM rentals ORDER BY id DESC LIMIT 1')
+        let lastRentalId = 0; 
+        if (lastRentalIdQuery.rowCount >= 1){
+            lastRentalId = lastRentalIdQuery.rows[0].id;
+        }
+        
+        const GameCountCheckQuery = await connection.query(`
+            WITH games_count AS (
+                SELECT COUNT(1) AS count FROM games
+            ),
+            rentals_count AS(
+                SELECT COUNT(1) AS count FROM rentals
+            )
+            SELECT (g.count > r.count) AS "hasGame"
+            FROM games_count g, rentals_count r`); 
+        if(!GameCountCheckQuery.rows[0].hasGame) {
+            return res.sendStatus(400);
+        }
+        
+        const existCustomerIdCheckQuery = await connection.query('SELECT * FROM customers WHERE id= $1', [req.body.customerId]); 
+        if(existCustomerIdCheckQuery.rows.length == 0) {
+            return res.sendStatus(400);
+        }
+        const existGameIdCheckQuery = await connection.query('SELECT * FROM games WHERE id= $1', [req.body.gameId]); 
+        if(existGameIdCheckQuery.rows.length == 0) {
+            return res.sendStatus(400);
+        }
+
+        else{
+            const gamePriceQuery = await connection.query('SELECT * FROM games WHERE id= $1', [req.body.gameId]); 
+            let rental = {id: lastRentalId+1,
+                        customerId: req.body.customerId,
+                        gameId: req.body.gameId,
+                        rentDate: new Date(),
+                        daysRented: req.body.daysRented,
+                        originalPrice: req.body.daysRented * gamePriceQuery.rows[0].pricePerDay,    
+                        }
+            const { error, value } = rentalSchema.validate(rental);
+            console.log(error)
+            if (typeof error !== 'undefined'){
+                return res.sendStatus(400);
+            }
+            console.log(rental)
+            const query = await connection.query('INSERT INTO rentals (id, "customerId", "gameId", "rentDate", "daysRented", "returnDate", "originalPrice", "delayFee") VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+             [rental.id, rental.customerId, rental.gameId, rental.rentDate, rental.daysRented, null, rental.originalPrice, 0]);
+            res.sendStatus(201);
+        }
+    } catch(error){
+        console.log(error);
+        res.sendStatus(400);
+    }
+})
+
 app.listen(process.env.PORT || 4000)

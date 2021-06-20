@@ -407,4 +407,39 @@ app.post("/rentals", async (req, res) => {
     }
 })
 
+app.post("/rentals/:rentalId/return", async (req, res) => {
+    const id = parseInt(req.params.rentalId);
+    try{
+        const existRentalIdCheckQuery = await connection.query('SELECT * FROM rentals WHERE id=$1', [id]); 
+        if(existRentalIdCheckQuery.rows.length == 0) {
+            return res.sendStatus(404);
+        }
+        else if(existRentalIdCheckQuery.rows[0].returnDate !== null) {
+            return res.sendStatus(400);
+        }
+
+        else{
+            const delayFeeQuery = await connection.query(`
+                SELECT  g."pricePerDay"*DATE_PART('day', NOW() - ("rentDate" + "daysRented" * INTERVAL '1 day')) as "delayFee"
+                FROM rentals r
+                LEFT JOIN games g on g.id = r."gameId"
+                WHERE r.id=${id}
+            `)
+            console.log(delayFeeQuery.rows[0])
+            let delayFee = delayFeeQuery.rows[0].delayFee;
+            if (delayFee < 0){
+                delayFee = 0;
+            }
+            const query = await connection.query(`
+                UPDATE rentals 
+                SET "returnDate" = NOW(),
+                    "delayFee" = ${delayFee} 
+                WHERE id=${id}`)
+            res.sendStatus(200);
+        }
+    } catch(error){
+        console.log(error);
+        res.sendStatus(400);
+    }
+})
 app.listen(process.env.PORT || 4000)

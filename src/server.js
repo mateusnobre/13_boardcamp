@@ -29,14 +29,14 @@ const categorySchema = Joi.object({
 })
 
 const gameImageRegex = /^http:///;
+
 const gameSchema = Joi.object({
     id: Joi.number().integer().required(),
     name: Joi.string().min(1).required(),
     image: Joi.string().pattern(gameImageRegex).required(),
-    stockTotal: Joi.number().integer().min(0).required(),
+    stockTotal: Joi.number().integer().min(1).required(),
     categoryId: Joi.number().integer().required(),
-    pricePerDay: Joi.number().integer().min(0).required(),
-    category: Joi.string().min(1).required(),
+    pricePerDay: Joi.number().integer().min(1).required()
 })
 
 app.get("/categories", (req, res) => {
@@ -110,7 +110,6 @@ app.post("/games", async (req, res) => {
 
         const existCheckQuery = await connection.query('SELECT * FROM games WHERE name= $1', [req.body.name]); 
         if(existCheckQuery.rows.length !== 0) {
-            console.log(existCheckQuery.rows)
             return res.sendStatus(409);
         }
         
@@ -119,16 +118,17 @@ app.post("/games", async (req, res) => {
             return res.sendStatus(400);
         }
         else{
-            let categoryName = existCategoryCheckQuery.rows[0].id;
             let game = {id: lastGameId+1,
                         name: req.body.name,
                         image: req.body.image,
                         stockTotal: req.body.stockTotal,
                         categoryId: req.body.categoryId,
-                        pricePerDay: req.body.pricePerDay,
-                        categoryName: categoryName
+                        pricePerDay: req.body.pricePerDay
                         }
-            gameSchema.validate(game);
+            const { error, value } = gameSchema.validate(game);
+            if (typeof error !== 'undefined'){
+                return res.sendStatus(400);
+            }
             console.log(game)
             const query = await connection.query('INSERT INTO games (id, name, image, "stockTotal", "categoryId", "pricePerDay") VALUES ($1, $2, $3, $4, $5, $6)',
              [game.id, game.name, game.image, game.stockTotal, game.categoryId, game.pricePerDay]);    
